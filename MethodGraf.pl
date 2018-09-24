@@ -12,7 +12,7 @@ use Benchmark; # Для замера выполнения кода
 my $start_time = Benchmark->new;
 
 my $file_name; 
-my @directories_to_search = (getcwd); # Текущая директория.
+my @directories_to_search = (getcwd); # Текущая директория.  
 my %InfoMethods;
 
 
@@ -83,7 +83,7 @@ sub ParsFile() {
     my $MethodBody = $+{body} if $txt =~ /$ConditionF/msiu or $txt =~ /$ConditionP/msiu;
     ParsCalls($MethodBody);
 }
-
+   
 sub ParsCalls() {
     my $MethodBody = shift;
     my @Buffer;
