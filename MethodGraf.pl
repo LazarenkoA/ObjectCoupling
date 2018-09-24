@@ -98,7 +98,7 @@ sub ParsCalls() {
         my @St = $JBuffer =~ /[\s]+\KЕсли(?:.+?)Тогда|^Если(?:.+?)Тогда/mgsiu;
         my @En = $JBuffer =~ /[\s]+КонецЕсли|^КонецЕсли/mgiu;
         my $Count += $#St;
-        $Count -= $#En;
+        $Count -= $#En;  
 
         if($Count != 0) {
             local $" = ",";
