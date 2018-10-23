@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 use strict;
+use warnings;
 use Encode;
 use File::Find;
 use Cwd;
@@ -18,16 +19,37 @@ my %InfoMethods;
 
 binmode(STDOUT,':utf8');
 
+FindFiles(getcwd);
 
-find(\&wanted, @directories_to_search);
-sub wanted {
-    #BuildMethodList($_) if /^(.*).bsl$/;
-    ParsFile($_) if /^(.*).bsl$/;
+sub FindFiles() {
+    my $CurDir = shift;
+
+    foreach (glob($CurDir . "/*")) {
+        FindFiles($_) if -d $_;
+        ParsFile($_) if /^(.*).bsl$/ and !(-z $_);
+    }
 }
+
+
 
 my $end_time = Benchmark->new;
 my $delta = timediff($end_time, $start_time);
 say "\n\nВремя выполнение скрипта:\n" . timestr($delta);
+
+
+exit;
+
+
+
+find(\&wanted, @directories_to_search);
+sub wanted {
+    #BuildMethodList($_) if /^(.*).bsl$/;
+    #say decode('Windows-1251', $_) if /^(.*).bsl$/;
+    ParsFile($_) if /^(.*).bsl$/;
+    
+}
+
+
 
 =foreach(keys %InfoMethods) {
     print decode('Windows-1251', $_) . "\r\n================\r\n\r\n" . 
@@ -39,10 +61,13 @@ say "\n\nВремя выполнение скрипта:\n" . timestr($delta);
 }   
 =cut
 
+
 foreach(values %InfoMethods) {
     @directories_to_search = $$_{ModulePath};
     find(\&callback, @directories_to_search);
 }
+
+
 
 sub callback {
     return unless(/^(.*).bsl$/);
@@ -75,13 +100,21 @@ sub ParsFile() {
     my $fileName = shift;
     my $txt = OpenAndReadFile($fileName);
 
+    #print "========== " . decode('Windows-1251', $File::Find::dir) . " =============\n";
+ 
+    my @MethodBody = $txt =~ /"^[\s]*(?|Процедура|Функция).*?$(?<body>.*?)^(?|конецпроцедуры|конецфункции)"/msgiu;
+    
+    say "===========" . decode('Windows-1251', $fileName) . "===========";
 
-    my $ConditionF = "Функция[\\s]+(?:.+?)[(][^)]+[)][\\s]+(?:Экспорт)?(?<body>.+?)конецфункции";
-    my $ConditionP = "Процедура[\\s]+(?:.+?)[(][^)]+[)][\\s]+(?:Экспорт)?(?<body>.+?)конецпроцедуры";
-
-    #say "==========\n" . decode('Windows-1251', $File::Find::dir) . "\n";
-    my $MethodBody = $+{body} if $txt =~ /$ConditionF/msiu or $txt =~ /$ConditionP/msiu;
-    ParsCalls($MethodBody);
+    #say $+{body};
+    #say "------------";
+    #say $MethodBody;
+    #local $, = "\n ---- \n";
+    #say @MethodBody;
+    #say "=======================";
+    
+    #ParsCalls($MethodBody);
+    ParsCalls($txt);
 }
    
 sub ParsCalls() {
@@ -91,7 +124,9 @@ sub ParsCalls() {
    # Мне кажется, что костыльно, но как получилось
     foreach(split("\n", $MethodBody)) { 
       my @calls = $_ =~ /([\w]+[\.][\w]+)[(]/mgiu; # через точку, т.е. не будут учитываться локальные методы. Правда с глобальными методами засада получается.
-      
+      #my @calls = $_ =~ /(((?<Open>Если).*?(?=(Если|КонецЕсли)))+((?<-Open>КонецЕсли).*?)+)+(?(Open)(?!))/mgiu;
+
+
       # Если выше есть не "закрытые" Если значит вызов из блока условия.
       if(@calls) {
         my $JBuffer = join("\n", @Buffer);
@@ -101,8 +136,8 @@ sub ParsCalls() {
         $Count -= $#En;  
 
         if($Count != 0) {
-            local $" = ",";
-            #say "Вызовы @calls в условии - вероятность вызова ". (100/2**$Count) . "%";
+            #local $" = ",";
+            say "Вызовы @calls в условии - вероятность вызова ". (100/2**$Count) . "%";
         } else {
            # say "Вызовы @calls вне условия, вероятность 100%";
         }
@@ -111,7 +146,6 @@ sub ParsCalls() {
 
       push(@Buffer, $_);
     }
-
 
     #my $PartBody = $2 if $MethodBody =~ /[\s]Если(.+?)Тогда(.*)КонецЕсли/sgiu;
    # my $PartBody = GetPart("Если", "КонецЕсли", $MethodBody);
